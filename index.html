@@ -58,7 +58,7 @@ tiles.addTo(map);
 
 function getpop() {
         var nereq2 = new XMLHttpRequest();
-        nereq2.open("GET", "api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=us:1&key=4ee09bb65970eced19fcefc89278fe6ba7ff8fbd", true);
+        nereq2.open("GET", "https://api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=us:1&key=4ee09bb65970eced19fcefc89278fe6ba7ff8fbd", true);
         nereq2.onreadystatechange = function () {
             if (nereq2.readyState == 4) {
                 var temp3 = nereq2.response;  
