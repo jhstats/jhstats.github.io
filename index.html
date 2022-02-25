@@ -10,6 +10,10 @@
     <script src="./js/leaflet.js"></script>
     <script src="./js/leaflet.ajax.min.js"></script>
     <script src="./js/bootstrap.min.js"></script>
+    <script src="./js/config.js"></script>
+    
+    <!-- var tl_2021_45-->
+    <script src="./GeoJSON/tl_2021_45_tract.js"></script>
     <style>
     #map {
         position: relative;
@@ -29,10 +33,8 @@
     <div class="container mt-5">
         <div class="row">
           <div class="col-sm-4">
-            <h3></h3>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit...</p>
-            <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris...</p>
-            <input type="button" class="btn btn-success" value="Start" onclick="getpop()">
+            <input type="button" class="btn btn-success" value="Send Request to Census" onclick="getpop()">
+            <textarea class="form-control" rows="5" id="textAreaResponse"></textarea>
           </div>
           <div class="col-sm-8">
             <div id="map"></div>
@@ -46,6 +48,16 @@
 
 var map = L.map('map').setView([34, -81], 10);
 
+let censusVariable = "P1_001N"; // total population
+let censusURL = "https://api.census.gov/data/2020/dec/pl?get=NAME,"; //2020 redistricting
+
+let fetchURL;
+let geoidClick;
+let stateClick;
+let countyClick;
+let tractClick;
+
+// add tiles
 var tiles = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiamRoaWJiZXJ0IiwiYSI6ImNrejdyYXFnZjBtZm8yb21wYTBtdzlsd2cifQ.sw9Ly8ks5nkQ2WmucBvBVQ', {
     maxZoom: 18,
     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
@@ -56,17 +68,78 @@ var tiles = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}
 });
 tiles.addTo(map);
 
-function getpop() {
-        var nereq2 = new XMLHttpRequest();
-        nereq2.open("GET", "https://api.census.gov/data/2019/acs/acs5?get=NAME,B01001_001E&for=tract:020100&in=state:45%20county:095&key=4ee09bb65970eced19fcefc89278fe6ba7ff8fbd", true);
-        nereq2.onreadystatechange = function () {
-            if (nereq2.readyState == 4) {
-                var temp3 = nereq2.response;  
-        //        document.getElementById("fs").innerHTML = temp3;
-            };
-        };
-        nereq2.send();
+// return tract color/syle
+function tractStyle(feature) {
+  return {  
+    color: '#B04173'
+  };
+}
+
+
+
+// add geojson tracks
+var tractsLayer = new L.geoJSON(tl_2021_45,{
+  style: tractStyle,
+  onEachFeature: onEachFeature
+});                  
+tractsLayer.addTo(map);
+
+// bind functions to each geojson feature
+function onEachFeature(feature, layer) {
+    //show geoid for now...
+      layer.bindPopup(feature.properties.GEOID);
+      layer.on({ 
+                  mouseover: featureHover, 
+                  mouseout: resetHighlight,
+                  click: featureClick
+              });
+}
+// highlight when mouse over tract
+function featureHover(e) {
+    
+    var layer = e.target;
+
+    layer.setStyle({
+        weight: 5,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.7
+    });
+
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        layer.bringToFront();
     }
+    
+}
+
+// remove highlight when mouse moves off tract
+function resetHighlight(e) {
+  tractsLayer.resetStyle(e.target);
+}
+
+function featureClick(e) {
+  document.getElementById("textAreaResponse").innerHTML = "";
+  geoidClick = e.target.feature.properties.GEOID;
+  stateClick = geoidClick.slice(0, 2);
+  countyClick = geoidClick.slice(2, 5);
+  tractClick = geoidClick.slice(5, 12);
+  document.getElementById("textAreaResponse").innerHTML = geoidClick + " : " +  stateClick + " : " + countyClick + " : " + tractClick;
+  fetchURL = censusURL + censusVariable + "&for=tract:" + tractClick + "&in=state:" + stateClick + "%20county:" + countyClick + "&key=" + KEY;
+
+}
+
+async function getpop() {
+  let response = await fetch(fetchURL);
+  let data = await response.text();
+  try {
+        let rows = await JSON.parse(data);  // convert to array
+        document.getElementById("textAreaResponse").innerHTML = rows[1][0] + "\n" + "Total Population: " + rows[1][1];
+  } catch(error) {
+        document.getElementById("textAreaResponse").innerHTML = "API error retrieving variable for " + geoidClick;    
+  }
+  
+  
+}
 </script>
 
 
