@@ -131,37 +131,23 @@ function featureClick(e) {
 
 async function getpop() {
   document.getElementById("textAreaResponse").innerHTML = "";
-  let totPop;
   for (let i=0; i < censusVariables.length; i++) {
-      
-      fetchURL = censusURL + censusVariables[i] + "&for=tract:" + tractClick + "&in=state:" + stateClick + "%20county:" + countyClick + "&key=" + KEY;
-      console.log(fetchURL);
-      let response = await fetch(fetchURL);
-      let data = await response.text();
-    
-      
-      try {
-          let rows = await JSON.parse(data);  // convert to array
-          if (i == 0) {
-          totPop = rows[1][1];
-          }
-          let censusVar = rows[1][1];
-          let pct = censusVar / totPop * 100;
-          
-          document.getElementById("textAreaResponse").innerHTML += rows[0][1] + ": " + censusVar + "(" + pct + "%)\n";
+    fetchURL = censusURL + censusVariables[i] + "&for=tract:" + tractClick + "&in=state:" + stateClick + "%20county:" + countyClick + "&key=" + KEY;
+    console.log(fetchURL);
+    let response = await fetch(fetchURL);
+    let data = await response.text();
+    try {
+        let rows = await JSON.parse(data);  // convert to array
+        document.getElementById("textAreaResponse").innerHTML += rows[0][1] + ": " + rows[1][1] + "\n";
         
-        
-          } catch(error) {
-          document.getElementById("textAreaResponse").innerHTML = "API error retrieving variable for " + geoidClick;    
-          }
-      }
+        } catch(error) {
+        document.getElementById("textAreaResponse").innerHTML = "API error retrieving variable for " + geoidClick;    
+        }
+    }
     
   }
   
   
 
 </script>
-
-
-
 
