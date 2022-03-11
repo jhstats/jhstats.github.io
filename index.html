@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,6 +9,7 @@
     <script type="text/javascript" src="./js/leaflet.js"></script>
     <script type="text/javascript" src="./js/leaflet.ajax.min.js"></script>
     <script type="text/javascript" src="./js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.3.0/d3.min.js"></script>
     <script type="text/javascript" src="./js/config.js"></script>
     
     <!-- var tl_2021_45-->
@@ -23,8 +22,13 @@
         height: 400px;
         width: 100%;  
       }
+    .bar-chart {  
+      background-color: #ffffff;  
+    }
+
     </style>   
 </head>
+
 <body>
   <div class="container-fluid p-4 bg-primary text-white text-center">
       <h1>2020 Census Maps</h1>
@@ -38,13 +42,15 @@
         <div class="dropdown">
           <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">Menu</button>
           <input type="button" class="btn btn-success" value="Send Request to Census" onclick="getpop()">
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#">Graph It (D3)</a></li>
-              <li><a class="dropdown-item" href="https://api.census.gov/data/2020/dec/pl/variables.html">Variable Dictionary (Census)</a></li>              
-            </ul>
-          </div>
-          <textarea class="form-control" rows="12" id="textAreaResponse"></textarea>
+          <ul class="dropdown-menu">            
+            <li><a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalGraph">Graph It (D3)</a></li>
+            <li><a class="dropdown-item" href="https://api.census.gov/data/2020/dec/pl/variables.html">Variable Dictionary (Census)</a></li>                  
+          </ul>
+        </div>
+        <textarea class="form-control" rows="12" id="textAreaResponse"></textarea>
           
+          <!-- community resiliancy call example-->
+          <!-- https://api.census.gov/data/2019/cre?get=group(CRE)&for=tract:010408&in=state:45%20county:079&key= -->
         
       </div>
       <div class="col-sm-8">
@@ -52,15 +58,44 @@
       </div>         
     </div>
   </div>
+
+  <!-- Modal -->
+<div class="modal fade" id="modalGraph" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Graph (D3)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <svg></svg>  
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>        
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 
 
 <script>
 
+var svgWidth = 465;  
+var svgHeight = 300;
+
+var svg = d3.select('svg')  
+    .attr("width", svgWidth)  
+    .attr("height", svgHeight)  
+    .attr("class", "bar-chart");
+
+var dataset = [];
+
+
 var map = L.map('map').setView([34, -81], 10);
 let censusDict = {};
 let censusGroup = ["group(P1)"];
-let censusVariables = ["P1_001N", "P1_003N", "P1_004N", "P1_005N", "P1_006N", "P1_007N", "P1_008N"]; // total population
+let censusVariables = ["P1_001N", "P1_003N", "P1_004N", "P1_005N", "P1_006N", "P1_007N", "P1_008N", "P1_009N"]; // total population
 //let censusURL = "https://api.census.gov/data/2020/dec/pl?get=NAME,"; //2020 redistricting
 let censusURL = "https://api.census.gov/data/2020/dec/pl?get="; //2020 redistricting
 
@@ -88,8 +123,6 @@ function tractStyle(feature) {
   };
 }
 
-
-
 // add geojson tracks
 var tractsLayer = new L.geoJSON(tl_2021_45,{
   style: tractStyle,
@@ -111,7 +144,6 @@ function onEachFeature(feature, layer) {
 function featureHover(e) {
     
     var layer = e.target;
-
     layer.setStyle({
         weight: 5,
         color: '#666',
@@ -130,6 +162,7 @@ function resetHighlight(e) {
   tractsLayer.resetStyle(e.target);
 }
 
+// get state, county, tract from click
 function featureClick(e) {
   document.getElementById("textAreaResponse").innerHTML = "";
   geoidClick = e.target.feature.properties.GEOID;
@@ -137,10 +170,9 @@ function featureClick(e) {
   countyClick = geoidClick.slice(2, 5);
   tractClick = geoidClick.slice(5, 12);
   document.getElementById("textAreaResponse").innerHTML = geoidClick + " : " +  stateClick + " : " + countyClick + " : " + tractClick;
-  
-
 }
 
+// get variable index containing value from variable name
 function getIndexFromVariableName(varName, censusArray) {
   let idx = -1;
   for(i = 0; i < censusArray[0].length; i++) {
@@ -151,8 +183,14 @@ function getIndexFromVariableName(varName, censusArray) {
   return idx;
 }
 
+function doGraph(dataset) {
+  
+}
+
+// api call to census, get P1 group, populate textarea with only variables selected in array
 async function getpop() {
-  document.getElementById("textAreaResponse").innerHTML = "";
+  dataset.length = 0;
+  document.getElementById("textAreaResponse").innerHTML = "Fetching...";
   let totPop;
   for (let i=0; i < censusGroup.length; i++) {
 
@@ -161,6 +199,7 @@ async function getpop() {
       let response = await fetch(fetchURL);
       let data = await response.text();
       let rows = await JSON.parse(data);
+      document.getElementById("textAreaResponse").innerHTML = "";
       document.getElementById("textAreaResponse").innerHTML += rows[1][1] + "\n"; // tract name + info
       totPop = rows[1][2];
 
@@ -168,10 +207,31 @@ async function getpop() {
         let idx = getIndexFromVariableName(censusVariables[j], rows);
         if (idx > 0) {
           let pct = (rows[1][idx] / totPop * 100).toFixed(2);
-          document.getElementById("textAreaResponse").innerHTML += rows[0][idx] + ": " + rows[1][idx] + " (" + pct + ")\n";        
+          document.getElementById("textAreaResponse").innerHTML += rows[0][idx] + ": " + rows[1][idx] + " (" + pct + ")\n";     
+          dataset.push(pct);
         }        
       }
     }
+    
+    dataset.shift();
+    console.log(dataset.toString());
+    var barPadding = 5;  
+    var barWidth = (svgWidth / dataset.length);
+    var barChart = svg.selectAll("rect")  
+    .data(dataset)  
+    .enter()  
+    .append("rect")  
+    .attr("y", function(d) {  
+        return svgHeight - d  
+    })  
+    .attr("height", function(d) {  
+        return d;  
+    })  
+    .attr("width", barWidth - barPadding)  
+    .attr("transform", function (d, i) {  
+         var translate = [barWidth * i, 0];  
+         return "translate("+ translate +")";  
+    });
   }
   
 </script>
